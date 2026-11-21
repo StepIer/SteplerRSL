@@ -7,7 +7,5 @@
     <string name="overlay_notification_title">Overlay is running</string>
     <string name="overlay_notification_channel">Overlay</string>
     <string name="overlay_screenshot">Screenshot</string>
-    <string name="screenshot_saved">Screenshot saved to gallery</string>
-    <string name="screenshot_failed">Failed to take screenshot</string>
-    <string name="screenshot_permission_denied">Screen capture permission denied</string>
+    <string name="overlay_log_empty">Log is empty. Tap Screenshot to start.</string>
 </resources>

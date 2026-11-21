@@ -54,6 +54,8 @@ dependencies {
     implementation(libs.androidx.hilt.lifecycle.viewmodel.compose)
     implementation(libs.orbit.viewmodel)
     implementation(libs.orbit.compose)
+    implementation(libs.mlkit.text.recognition)
+    implementation(libs.kotlinx.coroutines.play.services)
     testImplementation(libs.junit)
     testImplementation(libs.orbit.test)
     testImplementation(libs.kotlinx.coroutines.test)
