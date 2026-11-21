@@ -40,6 +40,8 @@ fun StartOverlayScreen(
         when (effect) {
             StartOverlaySideEffect.StartOverlay -> OverlayService.start(context)
             StartOverlaySideEffect.OpenPermissionSettings -> context.openOverlayPermissionSettings()
+            StartOverlaySideEffect.OpenAccessibilitySettings ->
+                context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
             StartOverlaySideEffect.RequestNotificationPermission ->
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                     notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -52,6 +54,7 @@ fun StartOverlayScreen(
     StartOverlayContent(
         state = state,
         onStartClick = viewModel::onStartClick,
+        onEnableAutoTapClick = viewModel::onEnableAutoTapClick,
         modifier = modifier,
     )
 }

@@ -1,5 +1,6 @@
 package com.stepler.steplerrsl.feature.overlay.presentation.start
 
+import com.stepler.steplerrsl.common.domain.autotap.ScreenTapper
 import com.stepler.steplerrsl.feature.overlay.domain.repository.NotificationPermissionRepository
 import com.stepler.steplerrsl.feature.overlay.domain.repository.OverlayPermissionRepository
 import com.stepler.steplerrsl.feature.overlay.domain.usecase.CheckNotificationPermissionUseCase
@@ -10,11 +11,31 @@ import org.orbitmvi.orbit.test.test
 
 class StartOverlayViewModelTest {
 
-    private fun viewModel(overlayGranted: Boolean, notificationsGranted: Boolean = true) =
-        StartOverlayViewModel(
-            CheckOverlayPermissionUseCase(FakeOverlayPermissionRepository(overlayGranted)),
-            CheckNotificationPermissionUseCase(FakeNotificationPermissionRepository(notificationsGranted)),
-        )
+    private fun viewModel(
+        overlayGranted: Boolean,
+        notificationsGranted: Boolean = true,
+        autoTapEnabled: Boolean = false,
+    ) = StartOverlayViewModel(
+        CheckOverlayPermissionUseCase(FakeOverlayPermissionRepository(overlayGranted)),
+        CheckNotificationPermissionUseCase(FakeNotificationPermissionRepository(notificationsGranted)),
+        FakeScreenTapper(autoTapEnabled),
+    )
+
+    @Test
+    fun `resume shows overlay permission and auto-tap status`() = runTest {
+        viewModel(overlayGranted = true, autoTapEnabled = true).test(this) {
+            containerHost.onResume()
+            expectState { copy(isPermissionGranted = true, isAutoTapEnabled = true) }
+        }
+    }
+
+    @Test
+    fun `enable auto-tap opens accessibility settings`() = runTest {
+        viewModel(overlayGranted = true).test(this) {
+            containerHost.onEnableAutoTapClick()
+            expectSideEffect(StartOverlaySideEffect.OpenAccessibilitySettings)
+        }
+    }
 
     @Test
     fun `start click with all permissions starts overlay`() = runTest {
@@ -57,5 +78,10 @@ class StartOverlayViewModelTest {
     private class FakeNotificationPermissionRepository(private val granted: Boolean) :
         NotificationPermissionRepository {
         override fun isGranted() = granted
+    }
+
+    private class FakeScreenTapper(private val enabled: Boolean) : ScreenTapper {
+        override fun isEnabled() = enabled
+        override suspend fun tap(x: Int, y: Int) = Result.success(Unit)
     }
 }

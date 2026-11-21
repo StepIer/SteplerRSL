@@ -61,6 +61,7 @@ class OverlayService : LifecycleService(), SavedStateRegistryOwner {
 
     private val windowManager by lazy { getSystemService(WINDOW_SERVICE) as WindowManager }
     private var overlayView: ComposeView? = null
+    private var overlayParams: WindowManager.LayoutParams? = null
     private var screenCapturer: ScreenCapturer? = null
 
     override fun onCreate() {
@@ -72,6 +73,7 @@ class OverlayService : LifecycleService(), SavedStateRegistryOwner {
             viewModel.container.sideEffectFlow.collect { effect ->
                 when (effect) {
                     OverlaySideEffect.CaptureScreen -> captureScreen()
+                    is OverlaySideEffect.Tap -> tapThroughOverlay(effect.x, effect.y)
                 }
             }
         }
@@ -101,6 +103,7 @@ class OverlayService : LifecycleService(), SavedStateRegistryOwner {
         screenCapturer = null
         overlayView?.let(windowManager::removeView)
         overlayView = null
+        overlayParams = null
         viewModel.clear()
         super.onDestroy()
     }
@@ -141,6 +144,30 @@ class OverlayService : LifecycleService(), SavedStateRegistryOwner {
 
         windowManager.addView(view, params)
         overlayView = view
+        overlayParams = params
+    }
+
+    /** Lets touches pass through the overlay while tapping, so the tap reaches the app below. */
+    private fun tapThroughOverlay(x: Int, y: Int) {
+        lifecycleScope.launch {
+            setOverlayTouchable(false)
+            try {
+                viewModel.performTap(x, y).join()
+            } finally {
+                setOverlayTouchable(true)
+            }
+        }
+    }
+
+    private fun setOverlayTouchable(touchable: Boolean) {
+        val view = overlayView ?: return
+        val params = overlayParams ?: return
+        params.flags = if (touchable) {
+            params.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
+        } else {
+            params.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        }
+        windowManager.updateViewLayout(view, params)
     }
 
     private fun captureScreen() {

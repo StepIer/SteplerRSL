@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -21,6 +22,7 @@ import com.stepler.steplerrsl.core.ui.theme.SteplerRSLTheme
 fun StartOverlayContent(
     state: StartOverlayState,
     onStartClick: () -> Unit,
+    onEnableAutoTapClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -40,13 +42,31 @@ fun StartOverlayContent(
         Button(onClick = onStartClick) {
             Text(text = stringResource(R.string.overlay_start))
         }
+
+        Text(
+            text = stringResource(
+                if (state.isAutoTapEnabled) R.string.auto_tap_status_on else R.string.auto_tap_status_off
+            ),
+            style = MaterialTheme.typography.bodyMedium,
+            textAlign = TextAlign.Center,
+        )
+        if (!state.isAutoTapEnabled) {
+            OutlinedButton(onClick = onEnableAutoTapClick) {
+                Text(text = stringResource(R.string.auto_tap_enable))
+            }
+            Text(
+                text = stringResource(R.string.auto_tap_hint),
+                style = MaterialTheme.typography.bodySmall,
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, widthDp = 800, heightDp = 360)
 @Composable
 private fun StartOverlayContentPreview() {
     SteplerRSLTheme {
-        StartOverlayContent(state = StartOverlayState(), onStartClick = {})
+        StartOverlayContent(state = StartOverlayState(), onStartClick = {}, onEnableAutoTapClick = {})
     }
 }
