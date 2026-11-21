@@ -27,23 +27,23 @@ class DetectScreenUseCaseTest {
     }
 
     @Test
-    fun `main screen matches with all seven words in any case`() {
+    fun `main screen matches with all eight words in any case`() {
         val match = mainScreen(
-            words("MISSIONS", "Quests", "challenges", "Clans", "Index", "Champions", "Battle", "Shop")
+            words("MISSIONS", "Quests", "challenges", "Clans", "Index", "Champions", "Battle", "shop", "Settings")
         )
         assertEquals("Main", match?.screen?.name)
-        assertEquals(7, match?.matchedWords?.size)
+        assertEquals(8, match?.matchedWords?.size)
     }
 
     @Test
-    fun `main screen still matches when two words are missed (5 of 7 is over 70 percent)`() {
-        val match = mainScreen(words("Missions", "Quests", "Clans", "Champions", "Battle"))
+    fun `main screen still matches when two words are missed (6 of 8 is over 70 percent)`() {
+        val match = mainScreen(words("Missions", "Quests", "Clans", "Champions", "Battle", "Shop"))
         assertEquals("Main", match?.screen?.name)
-        assertEquals(5, match?.matchedWords?.size)
+        assertEquals(6, match?.matchedWords?.size)
     }
 
     @Test
-    fun `main screen does not match with only 4 of 7 words`() {
+    fun `main screen does not match with only 5 of 8 words`() {
         assertNull(mainScreen(words("Missions", "Quests", "Clans", "Battle", "Shop", "Settings")))
     }
 

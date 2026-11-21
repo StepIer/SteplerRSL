@@ -21,6 +21,7 @@ class ScreenDefinitionRepositoryImpl @Inject constructor() : ScreenDefinitionRep
                     "Index",
                     "Champions",
                     "Battle",
+                    "Shop",
                 ),
             ),
         )
