@@ -1,4 +1,4 @@
-package com.stepler.steplerrsl.ui.theme
+package com.stepler.steplerrsl.core.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

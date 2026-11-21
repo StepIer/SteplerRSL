@@ -1,4 +1,4 @@
-package com.stepler.steplerrsl.ui.theme
+package com.stepler.steplerrsl.core.ui.theme
 
 import android.app.Activity
 import android.os.Build

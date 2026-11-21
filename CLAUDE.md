@@ -2,26 +2,51 @@
 
 Android app, Kotlin, single Gradle module `:app`, base package `com.stepler.steplerrsl`.
 
-## Architecture: Clean Architecture, 3 layers
+## Package structure: core / common / feature
+
+The app is split by **feature first**, then by Clean Architecture layer inside each feature.
 
 ```
 com.stepler.steplerrsl
-├── data/            # implementations: API, DB, DataStore, mappers, repository impls
-│   ├── remote/      #   network DTOs + API services
-│   ├── local/       #   DB entities, DAOs, preferences
-│   ├── mapper/      #   DTO/Entity <-> domain model mappers
-│   └── repository/  #   XxxRepositoryImpl : XxxRepository
-├── domain/          # pure Kotlin business logic
-│   ├── model/       #   domain models (plain data classes)
-│   ├── repository/  #   repository interfaces
-│   └── usecase/     #   one use case = one business action
-└── presentation/    # UI
-    ├── <feature>/   #   XxxScreen.kt, XxxViewModel.kt, XxxState.kt, XxxSideEffect.kt
-    ├── navigation/
-    └── ui/theme/    #   Compose theme, colors, typography
+├── SteplerApp.kt, MainActivity.kt
+├── core/                   # foundation of the app, knows nothing about features
+│   ├── di/                 #   app-wide Hilt modules (network, database, dispatchers)
+│   ├── network/            #   HTTP client setup, interceptors, base API error handling
+│   ├── database/           #   Room database, migrations
+│   ├── datastore/          #   preferences storage
+│   ├── navigation/         #   NavHost, route definitions, navigation helpers
+│   ├── ui/theme/           #   design system: theme, colors, typography, dimensions
+│   └── util/               #   dispatchers, Result helpers, extensions
+├── common/                 # pieces shared by 2+ features
+│   ├── data/               #   shared repository impls, DTOs, mappers
+│   ├── domain/             #   shared models, repository interfaces, use cases
+│   └── presentation/       #   reusable composables (buttons, dialogs, loaders, error views)
+└── feature/
+    └── <featurename>/      # one package per feature, e.g. feature/steps, feature/profile
+        ├── data/
+        │   ├── remote/     #   DTOs + API services
+        │   ├── local/      #   DB entities, DAOs
+        │   ├── mapper/     #   DTO/Entity <-> domain model
+        │   └── repository/ #   XxxRepositoryImpl : XxxRepository
+        ├── domain/
+        │   ├── model/      #   domain models (plain data classes)
+        │   ├── repository/ #   repository interfaces
+        │   └── usecase/    #   one use case = one business action
+        ├── presentation/   #   XxxScreen.kt, XxxContent.kt, XxxViewModel.kt, XxxState.kt, XxxSideEffect.kt
+        └── di/             #   Hilt module binding this feature's repositories
 ```
 
-### Dependency rule
+### What goes where
+- **`core`** — infrastructure every part of the app stands on and that has no business meaning: DI setup, network/DB clients, navigation host, design system, generic utilities. If it would exist in any app, it's `core`.
+- **`common`** — business logic or UI that is **used by two or more features** (e.g. a `User` model and `GetCurrentUserUseCase` used by both `profile` and `steps`). Follows the same `data/domain/presentation` split. Code starts in a feature and moves to `common` only once a second feature needs it.
+- **`feature/<name>`** — everything specific to one feature. A new screen/flow = a new feature package. Package names are lowercase, single word where possible.
+
+### Dependency rules between packages
+- `feature` → `common` → `core`. Arrows only point that way.
+- **Features never import from other features.** If two features need the same thing, move it to `common`. Cross-feature navigation goes through routes defined in `core/navigation`, passing only IDs/primitives.
+- `common` never imports from `feature`. `core` never imports from `common` or `feature`.
+
+### Dependency rule between layers (inside every feature and `common`)
 - `presentation` → `domain` ← `data`. Dependencies point **inward to `domain` only**.
 - `domain` must not import anything from `data`, `presentation`, `android.*` or `androidx.*`. Only Kotlin stdlib and `kotlinx.coroutines`.
 - `presentation` never touches `data` classes (DTOs, entities, API services, DAOs) directly — only use cases and domain models.
@@ -46,7 +71,7 @@ com.stepler.steplerrsl
   - `XxxScreen(viewModel)` — stateful route: gets the ViewModel, collects state and side effects.
   - `XxxContent(state, onAction...)` — stateless composable that only renders state and forwards events. Add `@Preview`s for this one.
 - Composables receive state + lambdas; they never call use cases or hold business logic.
-- Use the theme from `presentation/ui/theme` (`MaterialTheme.colorScheme`, `typography`); no hard-coded colors or text sizes. Strings go in `res/values/strings.xml`.
+- Use the theme from `core/ui/theme` (`MaterialTheme.colorScheme`, `typography`); no hard-coded colors or text sizes. Strings go in `res/values/strings.xml`.
 
 ### ViewModel with Orbit MVI
 Every ViewModel is an Orbit `ContainerHost<State, SideEffect>`:
@@ -117,7 +142,7 @@ fun StepsScreen(onBack: () -> Unit, viewModel: StepsViewModel = hiltViewModel())
 - `SteplerApp` is the `@HiltAndroidApp` application; activities are `@AndroidEntryPoint`.
 - ViewModels are `@HiltViewModel` with `@Inject constructor`; obtain them in Compose with `hiltViewModel()`.
 - Use cases and repository impls use `@Inject constructor` — no manual instantiation.
-- Hilt modules live in a `di/` package (`com.stepler.steplerrsl.di`), annotated `@Module @InstallIn(SingletonComponent::class)`. Bind repository interfaces with `@Binds` (e.g. `bindStepsRepository(impl: StepsRepositoryImpl): StepsRepository`); use `@Provides` only for third-party objects (Retrofit, Room, etc.).
+- App-wide Hilt modules live in `core/di`; each feature binds its own repositories in `feature/<name>/di`; shared bindings go in `common/di`. Modules are annotated `@Module @InstallIn(SingletonComponent::class)`. Bind repository interfaces with `@Binds` (e.g. `bindStepsRepository(impl: StepsRepositoryImpl): StepsRepository`); use `@Provides` only for third-party objects (Retrofit, Room, etc.).
 - `domain` stays free of Hilt/Android annotations except `javax.inject.Inject` on constructors.
 - Annotation processing uses KSP (`ksp(...)`), never kapt.
 

@@ -11,7 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.stepler.steplerrsl.ui.theme.SteplerRSLTheme
+import com.stepler.steplerrsl.core.ui.theme.SteplerRSLTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
