@@ -1,6 +1,7 @@
 package com.stepler.steplerrsl.feature.overlay.presentation.start
 
 import androidx.lifecycle.ViewModel
+import com.stepler.steplerrsl.feature.overlay.domain.usecase.CheckNotificationPermissionUseCase
 import com.stepler.steplerrsl.feature.overlay.domain.usecase.CheckOverlayPermissionUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import org.orbitmvi.orbit.ContainerHost
@@ -10,6 +11,7 @@ import javax.inject.Inject
 @HiltViewModel
 class StartOverlayViewModel @Inject constructor(
     private val checkOverlayPermissionUseCase: CheckOverlayPermissionUseCase,
+    private val checkNotificationPermissionUseCase: CheckNotificationPermissionUseCase,
 ) : ViewModel(), ContainerHost<StartOverlayState, StartOverlaySideEffect> {
 
     override val container = container<StartOverlayState, StartOverlaySideEffect>(StartOverlayState())
@@ -23,8 +25,16 @@ class StartOverlayViewModel @Inject constructor(
         val granted = checkOverlayPermissionUseCase()
         reduce { state.copy(isPermissionGranted = granted) }
         postSideEffect(
-            if (granted) StartOverlaySideEffect.StartOverlay
-            else StartOverlaySideEffect.OpenPermissionSettings
+            when {
+                !granted -> StartOverlaySideEffect.OpenPermissionSettings
+                !checkNotificationPermissionUseCase() -> StartOverlaySideEffect.RequestNotificationPermission
+                else -> StartOverlaySideEffect.StartOverlay
+            }
         )
+    }
+
+    /** Notifications are optional (overlay status + toasts), so start the overlay either way. */
+    fun onNotificationPermissionResult(@Suppress("UNUSED_PARAMETER") granted: Boolean) = intent {
+        postSideEffect(StartOverlaySideEffect.StartOverlay)
     }
 }

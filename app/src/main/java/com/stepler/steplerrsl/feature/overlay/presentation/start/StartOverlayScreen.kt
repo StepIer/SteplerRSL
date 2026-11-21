@@ -1,8 +1,12 @@
 package com.stepler.steplerrsl.feature.overlay.presentation.start
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -22,6 +26,11 @@ fun StartOverlayScreen(
     val context = LocalContext.current
     val state by viewModel.collectAsState()
 
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+        viewModel::onNotificationPermissionResult,
+    )
+
     LifecycleResumeEffect(Unit) {
         viewModel.onResume()
         onPauseOrDispose { }
@@ -31,6 +40,12 @@ fun StartOverlayScreen(
         when (effect) {
             StartOverlaySideEffect.StartOverlay -> OverlayService.start(context)
             StartOverlaySideEffect.OpenPermissionSettings -> context.openOverlayPermissionSettings()
+            StartOverlaySideEffect.RequestNotificationPermission ->
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                } else {
+                    viewModel.onNotificationPermissionResult(true)
+                }
         }
     }
 
