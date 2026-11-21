@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">SteplerRSL</string>
+    <string name="overlay_start">Start</string>
+    <string name="overlay_stop">Stop</string>
+    <string name="overlay_button">Rawr</string>
+    <string name="overlay_permission_required">Allow \"Display over other apps\" to show the overlay</string>
+    <string name="overlay_notification_title">Overlay is running</string>
+    <string name="overlay_notification_channel">Overlay</string>
 </resources>
