@@ -14,8 +14,7 @@ import android.os.Build
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
-import android.widget.Toast
-import androidx.annotation.StringRes
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.ComposeView
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
@@ -29,9 +28,8 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.stepler.steplerrsl.R
+import com.stepler.steplerrsl.common.domain.model.Screenshot
 import com.stepler.steplerrsl.core.ui.theme.SteplerRSLTheme
-import com.stepler.steplerrsl.feature.overlay.domain.usecase.LogOverlayButtonClickUseCase
-import com.stepler.steplerrsl.feature.overlay.domain.usecase.SaveScreenshotUseCase
 import com.stepler.steplerrsl.feature.overlay.presentation.screenshot.ScreenCaptureConsentActivity
 import com.stepler.steplerrsl.feature.overlay.presentation.screenshot.ScreenCapturer
 import dagger.hilt.android.AndroidEntryPoint
@@ -39,7 +37,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayOutputStream
+import org.orbitmvi.orbit.compose.collectAsState
 import javax.inject.Inject
 import kotlin.math.roundToInt
 
@@ -47,17 +45,15 @@ import kotlin.math.roundToInt
  * Foreground service that draws a Compose overlay on top of other apps.
  * Requires the SYSTEM_ALERT_WINDOW ("Display over other apps") permission.
  *
- * Screenshots use MediaProjection: the first tap asks for consent via
- * [ScreenCaptureConsentActivity]; the projection is then kept while the overlay lives.
+ * The service only does Android work (window, MediaProjection capture); all logic and state
+ * live in [OverlayViewModel]. Screenshots use MediaProjection: the first capture asks for
+ * consent via [ScreenCaptureConsentActivity]; the projection is then kept while the overlay lives.
  */
 @AndroidEntryPoint
 class OverlayService : LifecycleService(), SavedStateRegistryOwner {
 
     @Inject
-    lateinit var logOverlayButtonClick: LogOverlayButtonClickUseCase
-
-    @Inject
-    lateinit var saveScreenshot: SaveScreenshotUseCase
+    lateinit var viewModel: OverlayViewModel
 
     private val savedStateController = SavedStateRegistryController.create(this)
     override val savedStateRegistry: SavedStateRegistry
@@ -66,12 +62,19 @@ class OverlayService : LifecycleService(), SavedStateRegistryOwner {
     private val windowManager by lazy { getSystemService(WINDOW_SERVICE) as WindowManager }
     private var overlayView: ComposeView? = null
     private var screenCapturer: ScreenCapturer? = null
-    private var isCapturing = false
 
     override fun onCreate() {
         super.onCreate()
         savedStateController.performAttach()
         savedStateController.performRestore(null)
+
+        lifecycleScope.launch {
+            viewModel.container.sideEffectFlow.collect { effect ->
+                when (effect) {
+                    OverlaySideEffect.CaptureScreen -> captureScreen()
+                }
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -98,6 +101,7 @@ class OverlayService : LifecycleService(), SavedStateRegistryOwner {
         screenCapturer = null
         overlayView?.let(windowManager::removeView)
         overlayView = null
+        viewModel.clear()
         super.onDestroy()
     }
 
@@ -120,10 +124,12 @@ class OverlayService : LifecycleService(), SavedStateRegistryOwner {
         view.setViewTreeLifecycleOwner(this)
         view.setViewTreeSavedStateRegistryOwner(this)
         view.setContent {
+            val state by viewModel.collectAsState()
             SteplerRSLTheme {
                 OverlayContent(
-                    onRawrClick = { logOverlayButtonClick() },
-                    onScreenshotClick = ::onScreenshotClick,
+                    state = state,
+                    onRawrClick = viewModel::onRawrClick,
+                    onScreenshotClick = viewModel::onScreenshotClick,
                     onDrag = { delta ->
                         params.x += delta.x.roundToInt()
                         params.y += delta.y.roundToInt()
@@ -137,7 +143,7 @@ class OverlayService : LifecycleService(), SavedStateRegistryOwner {
         overlayView = view
     }
 
-    private fun onScreenshotClick() {
+    private fun captureScreen() {
         if (screenCapturer == null) {
             startActivity(
                 Intent(this, ScreenCaptureConsentActivity::class.java)
@@ -152,7 +158,7 @@ class OverlayService : LifecycleService(), SavedStateRegistryOwner {
         val resultCode = intent.getIntExtra(EXTRA_RESULT_CODE, Activity.RESULT_CANCELED)
         val data = IntentCompat.getParcelableExtra(intent, EXTRA_RESULT_DATA, Intent::class.java)
         if (resultCode != Activity.RESULT_OK || data == null) {
-            toast(R.string.screenshot_permission_denied)
+            viewModel.onCaptureFailed("screen capture permission denied")
             return
         }
 
@@ -162,7 +168,7 @@ class OverlayService : LifecycleService(), SavedStateRegistryOwner {
             .getMediaProjection(resultCode, data)
         if (projection == null) {
             startInForeground(withMediaProjection = false)
-            toast(R.string.screenshot_failed)
+            viewModel.onCaptureFailed("cannot start screen capture")
             return
         }
         screenCapturer = runCatching {
@@ -174,7 +180,7 @@ class OverlayService : LifecycleService(), SavedStateRegistryOwner {
         }.getOrElse {
             projection.stop()
             startInForeground(withMediaProjection = false)
-            toast(R.string.screenshot_failed)
+            viewModel.onCaptureFailed("cannot start screen capture: ${it.message}")
             return
         }
         takeScreenshot()
@@ -182,32 +188,25 @@ class OverlayService : LifecycleService(), SavedStateRegistryOwner {
 
     private fun takeScreenshot() {
         val capturer = screenCapturer ?: return
-        if (isCapturing) return
-        isCapturing = true
 
         lifecycleScope.launch {
             // Hide the overlay so it isn't part of the screenshot, and let dialogs animate away.
             overlayView?.visibility = View.INVISIBLE
             delay(HIDE_BEFORE_CAPTURE_MS)
-            val bitmap = runCatching { capturer.capture() }
+            val result = runCatching { capturer.capture() }
             overlayView?.visibility = View.VISIBLE
 
-            val saved = bitmap.mapCatching { saveScreenshot(it.toPng()).getOrThrow() }
-            toast(if (saved.isSuccess) R.string.screenshot_saved else R.string.screenshot_failed)
-            isCapturing = false
+            result
+                .mapCatching { it.toScreenshot() }
+                .onSuccess(viewModel::onScreenshotCaptured)
+                .onFailure { viewModel.onCaptureFailed(it.message ?: it.javaClass.simpleName) }
         }
     }
 
-    private suspend fun Bitmap.toPng(): ByteArray = withContext(Dispatchers.Default) {
-        ByteArrayOutputStream().use { out ->
-            compress(Bitmap.CompressFormat.PNG, 100, out)
-            recycle()
-            out.toByteArray()
-        }
-    }
-
-    private fun toast(@StringRes message: Int) {
-        Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+    private suspend fun Bitmap.toScreenshot(): Screenshot = withContext(Dispatchers.Default) {
+        val pixels = IntArray(width * height)
+        getPixels(pixels, 0, width, 0, 0, width, height)
+        Screenshot(width, height, pixels).also { recycle() }
     }
 
     @Suppress("DEPRECATION")

@@ -3,8 +3,9 @@ package com.stepler.steplerrsl.feature.overlay.domain.usecase
 import com.stepler.steplerrsl.feature.overlay.domain.repository.OverlayLogRepository
 import javax.inject.Inject
 
-class LogOverlayButtonClickUseCase @Inject constructor(
+/** Writes a message to the app log (logcat, tag `rawr`). */
+class LogMessageUseCase @Inject constructor(
     private val repository: OverlayLogRepository,
 ) {
-    operator fun invoke() = repository.log("Overlay button clicked")
+    operator fun invoke(message: String) = repository.log(message)
 }

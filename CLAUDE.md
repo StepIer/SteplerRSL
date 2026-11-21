@@ -44,6 +44,7 @@ com.stepler.steplerrsl
 ### Dependency rules between packages
 - `feature` → `common` → `core`. Arrows only point that way.
 - **Features never import from other features.** If two features need the same thing, move it to `common`. Cross-feature navigation goes through routes defined in `core/navigation`, passing only IDs/primitives.
+- **When one feature needs another feature's functionality**, put a contract in `common/domain`: the shared models in `common/domain/model` and an interface in `common/domain/<featurename>/` (e.g. `common/domain/screendetection/ScreenDetector`). The providing feature implements it on top of its own use cases and binds it in its `di` module; the consuming feature injects only the interface.
 - `common` never imports from `feature`. `core` never imports from `common` or `feature`.
 
 ### Dependency rule between layers (inside every feature and `common`)
