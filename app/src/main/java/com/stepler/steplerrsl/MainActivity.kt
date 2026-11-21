@@ -7,11 +7,10 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import com.stepler.steplerrsl.core.ui.theme.SteplerRSLTheme
+import com.stepler.steplerrsl.feature.overlay.presentation.overlay.OverlayService
+import com.stepler.steplerrsl.feature.overlay.presentation.start.StartOverlayScreen
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -22,28 +21,15 @@ class MainActivity : ComponentActivity() {
         setContent {
             SteplerRSLTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
+                    StartOverlayScreen(modifier = Modifier.padding(innerPadding))
                 }
             }
         }
     }
-}
 
-@Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    SteplerRSLTheme {
-        Greeting("Android")
+    override fun onDestroy() {
+        // The app is being closed (not just rotated): close the overlay together with it.
+        if (isFinishing) OverlayService.stop(this)
+        super.onDestroy()
     }
 }
