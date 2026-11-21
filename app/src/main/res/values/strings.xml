@@ -8,4 +8,9 @@
     <string name="overlay_notification_channel">Overlay</string>
     <string name="overlay_screenshot">Screenshot</string>
     <string name="overlay_log_empty">Log is empty. Tap Screenshot to start.</string>
+    <string name="tap_service_description">Lets SteplerRSL tap buttons in the game for you, e.g. Battle on the main screen. It only performs taps and does not read your screen content.</string>
+    <string name="auto_tap_status_on">Auto-tap is on</string>
+    <string name="auto_tap_status_off">Auto-tap is off: the Accessibility Service is disabled</string>
+    <string name="auto_tap_enable">Enable auto-tap</string>
+    <string name="auto_tap_hint">Find SteplerRSL in Accessibility (on Xiaomi: Downloaded apps / Installed services, or search \"SteplerRSL\" in Settings) and turn it on. If it\'s restricted: App info → ⋮ → Allow restricted settings.</string>
 </resources>

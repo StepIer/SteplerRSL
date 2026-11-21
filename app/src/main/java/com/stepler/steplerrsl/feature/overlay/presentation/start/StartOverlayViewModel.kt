@@ -1,6 +1,7 @@
 package com.stepler.steplerrsl.feature.overlay.presentation.start
 
 import androidx.lifecycle.ViewModel
+import com.stepler.steplerrsl.common.domain.autotap.ScreenTapper
 import com.stepler.steplerrsl.feature.overlay.domain.usecase.CheckNotificationPermissionUseCase
 import com.stepler.steplerrsl.feature.overlay.domain.usecase.CheckOverlayPermissionUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -12,13 +13,23 @@ import javax.inject.Inject
 class StartOverlayViewModel @Inject constructor(
     private val checkOverlayPermissionUseCase: CheckOverlayPermissionUseCase,
     private val checkNotificationPermissionUseCase: CheckNotificationPermissionUseCase,
+    private val screenTapper: ScreenTapper,
 ) : ViewModel(), ContainerHost<StartOverlayState, StartOverlaySideEffect> {
 
     override val container = container<StartOverlayState, StartOverlaySideEffect>(StartOverlayState())
 
     /** Called when the screen is resumed, e.g. after returning from the permission settings. */
     fun onResume() = intent {
-        reduce { state.copy(isPermissionGranted = checkOverlayPermissionUseCase()) }
+        reduce {
+            state.copy(
+                isPermissionGranted = checkOverlayPermissionUseCase(),
+                isAutoTapEnabled = screenTapper.isEnabled(),
+            )
+        }
+    }
+
+    fun onEnableAutoTapClick() = intent {
+        postSideEffect(StartOverlaySideEffect.OpenAccessibilitySettings)
     }
 
     fun onStartClick() = intent {
